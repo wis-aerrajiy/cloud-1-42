@@ -1,0 +1,15 @@
+---
+- name: Install Docker Compose plugin
+  apt:
+      name: docker-compose-plugin
+      state: present
+  become: yes
+
+- name: Verify Docker Compose installation
+  command: docker compose version
+  register: compose_version
+  changed_when: false
+
+- name: Display Docker Compose version
+  debug:
+      msg: "Docker Compose version installed: {{ compose_version.stdout }}"

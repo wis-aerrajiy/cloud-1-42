@@ -1,0 +1,70 @@
+---
+- name: Install UFW
+  apt:
+      name: ufw
+      state: present
+      update_cache: yes
+  become: yes
+
+- name: Reset UFW to default
+  ufw:
+      state: reset
+  become: yes
+
+- name: Set UFW default policies
+  ufw:
+      direction: "{{ item.direction }}"
+      policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+  become: yes
+
+- name: Allow SSH (port 22)
+  ufw:
+      rule: allow
+      port: '22'
+      proto: tcp
+      comment: 'SSH access'
+  become: yes
+
+- name: Allow HTTP (port 80)
+  ufw:
+      rule: allow
+      port: '80'
+      proto: tcp
+      comment: 'HTTP access'
+  become: yes
+
+- name: Allow HTTPS (port 443)
+  ufw:
+      rule: allow
+      port: '443'
+      proto: tcp
+      comment: 'HTTPS access'
+  become: yes
+
+- name: Allow custom ports
+  ufw:
+      rule: allow
+      port: "{{ item.port }}"
+      proto: "{{ item.proto | default('tcp') }}"
+      comment: "{{ item.comment | default('Custom port') }}"
+  loop: "{{ ufw_custom_ports }}"
+  when: ufw_custom_ports is defined
+  become: yes
+
+- name: Enable UFW
+  ufw:
+      state: enabled
+  become: yes
+
+- name: Check UFW status
+  command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+  become: yes
+
+- name: Display UFW status
+  debug:
+      msg: "{{ ufw_status.stdout_lines }}"

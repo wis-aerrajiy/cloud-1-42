@@ -1,0 +1,115 @@
+- name: Create application directory
+  file:
+      path: "{{ app_deploy_path }}"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+  become: yes
+
+- name: Deploy .env file from template
+  template:
+      src: .env.j2
+      dest: "{{ app_deploy_path }}/.env"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'
+
+- name: Deploy docker-compose from template
+  template:
+      src: docker-compose.yml.j2
+      dest: "{{ app_deploy_path }}/docker-compose.yml"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
+- name: Copy MariaDB directory
+  copy:
+      src: mariadb/
+      dest: "{{ app_deploy_path }}/mariadb/"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: preserve
+
+- name: Ensure MariaDB setup.sh is executable
+  file:
+      path: "{{ app_deploy_path }}/mariadb/tools/setup.sh"
+      mode: '0755'
+
+- name: Copy WordPress directory
+  copy:
+      src: wordpress/
+      dest: "{{ app_deploy_path }}/wordpress/"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: preserve
+
+- name: Ensure WordPress setup.sh is executable
+  file:
+      path: "{{ app_deploy_path }}/wordpress/tools/setup.sh"
+      mode: '0755'
+
+- name: Copy Nginx directory
+  copy:
+      src: nginx/
+      dest: "{{ app_deploy_path }}/nginx/"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: preserve
+
+- name: Ensure Nginx setup.sh is executable
+  file:
+      path: "{{ app_deploy_path }}/nginx/tools/setup.sh"
+      mode: '0755'
+
+- name: Stop existing services and remove orphans
+  command: docker compose down --remove-orphans
+  args:
+      chdir: "{{ app_deploy_path }}"
+  ignore_errors: yes
+
+- name: Remove old containers if they exist
+  command: docker rm -f mysql_db adminer
+  ignore_errors: yes
+
+- name: Build and start Docker containers
+  command: docker compose up -d --build
+  args:
+      chdir: "{{ app_deploy_path }}"
+
+- name: Wait for MariaDB to be ready
+  command: docker exec mariadb mariadb -u {{ db_user }} -p{{ db_pass }} -e "SELECT 1" {{ db_name }}
+  register: mariadb_ready
+  until: mariadb_ready.rc == 0
+  retries: 20
+  delay: 5
+  ignore_errors: yes
+
+- name: Wait for WordPress to be ready
+  command: docker exec wordpress test -f /var/www/wordpress/wp-config.php
+  register: wordpress_ready
+  until: wordpress_ready.rc == 0
+  retries: 30
+  delay: 10
+  ignore_errors: yes
+
+- name: Wait for Nginx to be ready
+  uri:
+      url: http://localhost
+      status_code: 200,301,302
+  register: nginx_ready
+  until: nginx_ready.status in [200, 301, 302]
+  retries: 10
+  delay: 5
+  ignore_errors: yes
+
+- name: Display running containers
+  command: docker compose ps
+  args:
+      chdir: "{{ app_deploy_path }}"
+  register: docker_ps
+  changed_when: false
+
+- name: Show container status
+  debug:
+      msg: "{{ docker_ps.stdout_lines }}"

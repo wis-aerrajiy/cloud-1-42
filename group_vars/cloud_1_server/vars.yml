@@ -1,0 +1,30 @@
+ansible_host: "{{ lookup('env', 'WP_SERVER_IP') }}"
+ansible_user: cloud-1
+ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+ansible_python_interpreter: /usr/bin/python3
+ansible_become_pass: "{{ vault_become_pass }}"
+
+# App deployment settings
+app_deploy_path: /home/cloud-1/app
+
+# MariaDB configuration
+db_name: "{{ vault_db_name }}"
+db_user: "{{ vault_db_user }}"
+db_pass: "{{ vault_db_pass }}"
+db_host: "mariadb"
+db_port: "3306"
+
+# WordPress configuration
+domain_name: "{{ vault_domain_name }}"
+site_title: "{{ vault_site_title }}"
+admin_user: "{{ vault_admin_user }}"
+admin_pass: "{{ vault_admin_pass }}"
+admin_mail: "{{ vault_admin_mail }}"
+user_user: "{{ vault_user_user }}"
+user_mail: "{{ vault_user_mail }}"
+user_pass: "{{ vault_user_pass }}"
+
+# UFW Firewall - Custom ports to allow
+ufw_custom_ports:
+  - { port: '8080', proto: 'tcp', comment: 'Adminer' }
+  - { port: '8081', proto: 'tcp', comment: 'phpMyAdmin' }
