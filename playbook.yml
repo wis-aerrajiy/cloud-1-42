@@ -1,7 +1,7 @@
 - name: Setup cloud_1_server with Python, Docker, and Docker Compose
   hosts: cloud_1_server
   become: true
-  
+
   roles:
     - { role: python, tags: ['python', 'infra', 'app'] }
     - { role: docker, tags: ['docker', 'infra', 'app'] }

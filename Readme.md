@@ -258,10 +258,4 @@ When modifying this playbook:
 3. Follow Ansible best practices for role structure
 4. Document any new variables or configuration options
 
-## 📄 License
-
-This project is configured for the `is-wis.com` domain deployment.
-
----
-
 **Last Updated**: January 8, 2026
