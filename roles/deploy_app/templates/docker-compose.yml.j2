@@ -4,82 +4,76 @@ services:
   mariadb:
     container_name: mariadb
     build:
-      context: ./mariadb
-      dockerfile: Dockerfile
+        context: ./mariadb
+        dockerfile: Dockerfile
     env_file:
-      - .env
+        - .env
     restart: always
     networks:
-      - inception
+        - inception
     volumes:
-      - data_mysql:/var/lib/mysql
+        - data_mysql:/var/lib/mysql
 
   wordpress:
     container_name: wordpress
     build:
-      context: ./wordpress
-      dockerfile: Dockerfile
+        context: ./wordpress
+        dockerfile: Dockerfile
     env_file:
-      - .env
+        - .env
     restart: always
     networks:
-      - inception
+        - inception
     volumes:
-      - data_wordpress:/var/www/wordpress
+        - data_wordpress:/var/www/wordpress
     depends_on:
-      - mariadb
+        - mariadb
 
   nginx:
     container_name: nginx
     build:
-      context: ./nginx
-      dockerfile: Dockerfile
+        context: ./nginx
+        dockerfile: Dockerfile
     restart: always
     networks:
-      - inception
+        - inception
     volumes:
-      - data_wordpress:/var/www/wordpress
+        - data_wordpress:/var/www/wordpress
     ports:
-      - "80:80"
-      - "443:443"
+        - "80:80"
+        - "443:443"
     depends_on:
-      - wordpress
+        - wordpress
+        - phpmyadmin
 
   adminer:
     image: adminer:latest
     container_name: adminer
-    ports:
-      - "8080:8080"
     environment:
-      ADMINER_DEFAULT_SERVER: mariadb
-      ADMINER_DESIGN: nette
+        ADMINER_DEFAULT_SERVER: mariadb
+        ADMINER_DESIGN: nette
     restart: always
     networks:
-      - inception
+        - inception
     depends_on:
-      - mariadb
+        - mariadb
 
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: phpmyadmin
-    ports:
-      - "8081:80"
     environment:
-      PMA_HOST: mariadb
-      PMA_PORT: 3306
-      PMA_USER: {{ db_user }}
-      PMA_PASSWORD: {{ db_pass }}
-      MYSQL_ROOT_PASSWORD: {{ db_pass }}
+        PMA_ARBITRARY: 1
+        PMA_ABSOLUTE_URI: /
     restart: always
     networks:
-      - inception
+        - inception
     depends_on:
-      - mariadb
+        - mariadb
 
 networks:
-  inception:
-    driver: bridge
+    inception:
+        driver: bridge
 
 volumes:
-  data_mysql:
-  data_wordpress:
+    data_mysql:
+    data_wordpress:

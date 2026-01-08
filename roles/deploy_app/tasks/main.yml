@@ -95,7 +95,7 @@
 
 - name: Wait for Nginx to be ready
   uri:
-      url: http://localhost
+      url: "{{ app_url }}"
       status_code: 200,301,302
   register: nginx_ready
   until: nginx_ready.status in [200, 301, 302]
