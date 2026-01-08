@@ -1,15 +1,11 @@
----
 - name: Setup cloud_1_server with Python, Docker, and Docker Compose
   hosts: cloud_1_server
-  # roles:
-  #   - { role: python, tags: ['python', 'infrastructure'] }
-  #   - { role: docker, tags: ['docker', 'infrastructure'] }
-  #   - { role: docker_compose, tags: ['docker_compose', 'infrastructure'] }
-  #   - { role: ufw, tags: ['ufw', 'firewall', 'security'] }
-  #   - { role: deploy_app, tags: ['deploy', 'app'] }
+  become: true
+  
   roles:
-    - python
-    - docker
-    - docker_compose
-    - ufw
-    - deploy_app
+    - { role: python, tags: ['python', 'infra', 'app'] }
+    - { role: docker, tags: ['docker', 'infra', 'app'] }
+    - { role: docker_compose, tags: ['docker_compose', 'infra', 'app'] }
+    - { role: ufw, tags: ['ufw', 'infra', 'app'] }
+    - { role: deploy_app, tags: ['deploy', 'app'] }
+    - { role: cleanup, tags: ['cleanup'] }

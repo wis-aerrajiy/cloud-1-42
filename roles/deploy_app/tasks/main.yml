@@ -57,20 +57,36 @@
       group: "{{ ansible_user }}"
       mode: preserve
 
+- name: Create nginx conf directory
+  file:
+      path: "{{ app_deploy_path }}/nginx/conf"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+
+- name: Copy Nginx configuration file
+  template:
+      src: nginx.conf.j2
+      dest: "{{ app_deploy_path }}/nginx/conf/nginx.conf"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
 - name: Ensure Nginx setup.sh is executable
   file:
       path: "{{ app_deploy_path }}/nginx/tools/setup.sh"
       mode: '0755'
 
-- name: Stop existing services and remove orphans
-  command: docker compose down --remove-orphans
-  args:
-      chdir: "{{ app_deploy_path }}"
-  ignore_errors: yes
+# - name: Stop existing services and remove orphans
+#   command: docker compose down --remove-orphans
+#   args:
+#       chdir: "{{ app_deploy_path }}"
+#   ignore_errors: yes
 
-- name: Remove old containers if they exist
-  command: docker rm -f mysql_db adminer
-  ignore_errors: yes
+# - name: Remove old containers if they exist
+#   command: docker rm -f mysql_db adminer
+#   ignore_errors: yes
 
 - name: Build and start Docker containers
   command: docker compose up -d --build

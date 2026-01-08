@@ -1,0 +1,163 @@
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
+
+- name: Check if docker binary exists
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: docker_bin
+
+- name: Check if docker-compose binary exists
+  ansible.builtin.stat:
+    path: /usr/local/bin/docker-compose
+  register: docker_compose_local
+
+- name: Stop Docker service if present
+  ansible.builtin.service:
+    name: docker
+    state: stopped
+    enabled: false
+  ignore_errors: true
+  when: "'docker' in ansible_facts.packages or docker_bin.stat.exists"
+
+- name: Stop containerd service if present
+  ansible.builtin.service:
+    name: containerd
+    state: stopped
+    enabled: false
+  ignore_errors: true
+  when: "'containerd' in ansible_facts.packages"
+
+# --- Remove all containers, volumes, images (best-effort) ---
+
+- name: Remove all containers (force)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if command -v docker >/dev/null 2>&1; then
+      ids="$(docker ps -aq || true)"
+      if [ -n "${ids}" ]; then
+        docker rm -f ${ids} || true
+      fi
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  ignore_errors: true
+  when: docker_bin.stat.exists
+
+- name: Remove all volumes
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if command -v docker >/dev/null 2>&1; then
+      vols="$(docker volume ls -q || true)"
+      if [ -n "${vols}" ]; then
+        docker volume rm -f ${vols} || true
+      fi
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  ignore_errors: true
+  when: docker_bin.stat.exists
+
+- name: Remove all images
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if command -v docker >/dev/null 2>&1; then
+      imgs="$(docker images -aq || true)"
+      if [ -n "${imgs}" ]; then
+        docker rmi -f ${imgs} || true
+      fi
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  ignore_errors: true
+  when: docker_bin.stat.exists
+
+- name: Docker system prune (belt-and-suspenders)
+  ansible.builtin.command: docker system prune -a -f --volumes
+  changed_when: false
+  ignore_errors: true
+  when: docker_bin.stat.exists
+
+# --- Remove Docker / Compose packages ---
+
+- name: Remove Docker and Compose packages (apt)
+  ansible.builtin.apt:
+    name:
+      - docker
+      - docker.io
+      - docker-ce
+      - docker-ce-cli
+      - docker-buildx-plugin
+      - docker-compose
+      - docker-compose-plugin
+      - containerd
+      - containerd.io
+      - runc
+    state: absent
+    purge: true
+    autoremove: true
+    update_cache: false
+  ignore_errors: true
+
+# --- Remove leftover binaries that may have been installed manually ---
+
+- name: Remove legacy docker-compose binary if present (/usr/local/bin)
+  ansible.builtin.file:
+    path: /usr/local/bin/docker-compose
+    state: absent
+  when: docker_compose_local.stat.exists
+
+- name: Remove docker-compose from /usr/bin if present (legacy)
+  ansible.builtin.file:
+    path: /usr/bin/docker-compose
+    state: absent
+  ignore_errors: true
+
+# --- Remove Docker data directories ---
+
+- name: Remove Docker and container runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/docker
+    - /var/lib/containerd
+    - /etc/docker
+    - /etc/containerd
+    - /run/docker
+    - /run/containerd
+    - /var/run/docker.sock
+  ignore_errors: true
+
+# --- UFW disable + remove ---
+- name: Check if ufw exists
+  ansible.builtin.command: ufw status
+  register: ufw_status
+  changed_when: false
+  failed_when: false
+
+- name: Disable UFW if installed/enabled
+  ansible.builtin.command: ufw --force disable
+  changed_when: false
+  failed_when: false
+  when: ufw_status.rc == 0
+
+- name: Remove UFW package (apt)
+  ansible.builtin.apt:
+    name: ufw
+    state: absent
+    purge: true
+    autoremove: true
+  ignore_errors: true
+
+- name: Remove UFW config directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/ufw
+    - /lib/ufw
+  ignore_errors: true
