@@ -78,16 +78,6 @@
       path: "{{ app_deploy_path }}/nginx/tools/setup.sh"
       mode: '0755'
 
-# - name: Stop existing services and remove orphans
-#   command: docker compose down --remove-orphans
-#   args:
-#       chdir: "{{ app_deploy_path }}"
-#   ignore_errors: yes
-
-# - name: Remove old containers if they exist
-#   command: docker rm -f mysql_db adminer
-#   ignore_errors: yes
-
 - name: Build and start Docker containers
   command: docker compose up -d --build
   args:
