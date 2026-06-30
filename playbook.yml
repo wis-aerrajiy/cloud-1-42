@@ -7,5 +7,10 @@
     - { role: docker, tags: ['docker', 'infra', 'app'] }
     - { role: docker_compose, tags: ['docker_compose', 'infra', 'app'] }
     - { role: ufw, tags: ['ufw', 'infra', 'app'] }
+    - { role: mariadb, tags: ['mariadb', 'deploy', 'app'] }
+    - { role: wordpress, tags: ['wordpress', 'deploy', 'app'] }
+    - { role: nginx, tags: ['nginx', 'deploy', 'app'] }
+    - { role: phpmyadmin, tags: ['phpmyadmin', 'deploy', 'app'] }
+    - { role: adminer, tags: ['adminer', 'deploy', 'app'] }
     - { role: deploy_app, tags: ['deploy', 'app'] }
     - { role: cleanup, tags: ['cleanup'] }

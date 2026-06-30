@@ -1,0 +1,70 @@
+- name: Create nginx build context directories
+  file:
+      path: "{{ app_deploy_path }}/nginx/{{ item }}"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+  loop:
+    - tools
+    - conf
+    - ssl
+  become: yes
+
+- name: Copy Nginx Dockerfile
+  copy:
+      src: Dockerfile
+      dest: "{{ app_deploy_path }}/nginx/Dockerfile"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
+- name: Copy Nginx setup.sh
+  copy:
+      src: tools/setup.sh
+      dest: "{{ app_deploy_path }}/nginx/tools/setup.sh"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+
+- name: Deploy Nginx configuration from template
+  template:
+      src: nginx.conf.j2
+      dest: "{{ app_deploy_path }}/nginx/conf/nginx.conf"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
+- name: Check this host's SSL files exist (host_files/{{ inventory_hostname }}/ssl/)
+  stat:
+      path: "{{ playbook_dir }}/host_files/{{ inventory_hostname }}/ssl/{{ item }}"
+  delegate_to: localhost
+  become: no
+  loop:
+    - "fullchain.pem"
+    - "{{ domain_name }}.key"
+  register: ssl_files_check
+
+- name: Fail if SSL files are missing for this host
+  fail:
+      msg: >-
+          Missing {{ item.item }} in
+          host_files/{{ inventory_hostname }}/ssl/ - see host_files/README.md
+  loop: "{{ ssl_files_check.results }}"
+  when: not item.stat.exists
+
+- name: Copy this host's SSL certificate
+  copy:
+      src: "{{ playbook_dir }}/host_files/{{ inventory_hostname }}/ssl/fullchain.pem"
+      dest: "{{ app_deploy_path }}/nginx/ssl/fullchain.pem"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
+- name: Copy this host's SSL private key
+  copy:
+      src: "{{ playbook_dir }}/host_files/{{ inventory_hostname }}/ssl/{{ domain_name }}.key"
+      dest: "{{ app_deploy_path }}/nginx/ssl/{{ domain_name }}.key"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'

@@ -1,0 +1,32 @@
+- name: Create wordpress build context directory
+  file:
+      path: "{{ app_deploy_path }}/wordpress/tools"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+  become: yes
+
+- name: Copy WordPress Dockerfile
+  copy:
+      src: Dockerfile
+      dest: "{{ app_deploy_path }}/wordpress/Dockerfile"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
+- name: Copy WordPress setup.sh
+  copy:
+      src: tools/setup.sh
+      dest: "{{ app_deploy_path }}/wordpress/tools/setup.sh"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+
+- name: Deploy WordPress .env file from template
+  template:
+      src: wordpress.env.j2
+      dest: "{{ app_deploy_path }}/wordpress/.env"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'

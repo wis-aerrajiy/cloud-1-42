@@ -1,0 +1,31 @@
+# Per-host configuration for server1 (is-wis.com).
+# Secrets (passwords) live in host_vars/server1/vault.yml instead - keep
+# this file free of anything that shouldn't be readable in plain text.
+
+ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+ansible_become_pass: "{{ vault_become_pass }}"
+
+# App deployment settings
+app_deploy_path: "/home/cloud-1/app"
+app_url: "https://{{ domain_name }}"
+
+# MariaDB configuration
+db_name: "wordpress"
+db_user: "wpuser"
+db_pass: "{{ vault_db_pass }}"
+
+# WordPress configuration
+domain_name: "is-wis.com"
+site_title: "0 My WordPress Site"
+admin_user: "admin"
+admin_pass: "{{ vault_admin_pass }}"
+admin_mail: "admin@your-domain.com"
+user_user: "author"
+user_mail: "author@your-domain.com"
+user_pass: "{{ vault_user_pass }}"
+
+# UFW Firewall - custom ports to allow on this host, beyond 22/80/443
+# (none needed by default: phpMyAdmin/Adminer are only reachable through
+# the Nginx reverse proxy on 443, their container ports are never
+# published to the host)
+ufw_custom_ports: []

@@ -1,6 +1,6 @@
 # Cloud-1 Ansible Deployment
 
-This Ansible project automates the deployment of a WordPress application stack with MariaDB, Nginx, phpMyAdmin, and Adminer on a remote server using Docker containers.
+This Ansible project automates the deployment of a WordPress application stack with MariaDB, Nginx, phpMyAdmin, and Adminer on one or more remote servers using Docker containers.
 
 ## 📋 Overview
 
@@ -31,88 +31,97 @@ Internet → Nginx (443/80) → WordPress (9000)
 ```
 ansible/
 ├── ansible.cfg                 # Ansible configuration
-├── hosts.yml                   # Inventory file
-├── playbook.yml               # Main playbook
+├── hosts.yml                   # Inventory file - one entry per server
+├── playbook.yml                # Main playbook
 ├── group_vars/
 │   └── cloud_1_server/
-│       ├── vars.yml           # Group variables
-│       └── cloud_1_server_vault.yml  # Encrypted secrets
+│       └── vars.yml            # Vars shared by every server (deploy user, image tags, ...)
+├── host_vars/
+│   ├── server1/
+│   │   ├── vars.yml            # Per-server config (domain, deploy path, db name/user, ...)
+│   │   └── vault.yml           # Per-server secrets (passwords) - plaintext for now, see Vault Secrets below
+│   └── server2/                # Template for adding another server
+│       ├── vars.yml
+│       └── vault.yml
+├── host_files/
+│   ├── README.md
+│   └── <hostname>/ssl/         # That server's SSL cert + key (fullchain.pem, <domain>.key)
 └── roles/
-    ├── python/                # Python installation
-    ├── docker/                # Docker installation and setup
-    ├── docker_compose/        # Docker Compose plugin installation
-    ├── ufw/                   # Firewall configuration
-    ├── deploy_app/            # Application deployment
-    │   ├── files/
-    │   │   ├── mariadb/       # MariaDB Dockerfile and scripts
-    │   │   ├── wordpress/     # WordPress Dockerfile and scripts
-    │   │   └── nginx/         # Nginx Dockerfile, config, and SSL certs
-    │   ├── tasks/
-    │   │   └── main.yml       # Deployment tasks
-    │   └── templates/
-    │       ├── .env.j2        # Environment variables template
-    │       └── docker-compose.yml.j2  # Docker Compose template
-    └── cleanup/               # Cleanup role for removing Docker/containers
+    ├── python/                 # Python installation
+    ├── docker/                 # Docker installation and setup
+    ├── docker_compose/         # Docker Compose plugin installation
+    ├── ufw/                    # Firewall configuration
+    ├── mariadb/                # MariaDB Dockerfile, setup script, .env
+    ├── wordpress/              # WordPress Dockerfile, setup script, .env
+    ├── nginx/                  # Nginx Dockerfile, config template, SSL deployment
+    ├── phpmyadmin/             # phpMyAdmin image/config (official image, no build context)
+    ├── adminer/                # Adminer image/config (official image, no build context)
+    ├── deploy_app/             # Orchestrator: renders docker-compose.yml, brings the stack up, waits for it to be healthy
+    └── cleanup/                # Cleanup role for removing Docker/containers
 ```
 
 ## 🔧 Prerequisites
 
 - Ansible 2.9+ installed on your control machine
-- Target server running Ubuntu/Debian
-- SSH access to the target server with sudo privileges
-- SSL certificates placed in the appropriate directory
-- Ansible Vault password for encrypted variables
+- Target server(s) running Ubuntu/Debian
+- SSH access to the target server(s) with sudo privileges
+- SSL certificates placed in `host_files/<hostname>/ssl/`
+- Ansible Vault password, once vault files are actually encrypted (see below)
 
 ## ⚙️ Configuration
 
 ### 1. Inventory Setup
 
-Edit [`hosts.yml`](hosts.yml) to configure your target server:
+Edit [`hosts.yml`](hosts.yml) and add one entry per server under `cloud_1_server`. The server's IP address (or domain name) goes in `ansible_host`:
 
 ```yaml
 all:
   children:
     cloud_1_server:
       hosts:
-        is-wis.com:
+        server1:
+          ansible_host: is-wis.com
+        server2:
+          ansible_host: 203.0.113.10
 ```
 
-### 2. Variables Configuration
+Every host in `cloud_1_server` is deployed to in a single `ansible-playbook` run.
 
-Configure variables in [`group_vars/cloud_1_server/vars.yml`](group_vars/cloud_1_server/vars.yml):
+### 2. Adding a server (multi-server deployment)
 
-- Connection settings (host, user, SSH key)
-- Database configuration (name, user, password)
-- WordPress settings (domain, admin credentials)
-- Custom firewall ports
+1. Add the host to `hosts.yml` as above.
+2. Create `host_vars/<hostname>/vars.yml` and `host_vars/<hostname>/vault.yml` - copy `host_vars/server2/` as a starting template and fill in real values (domain, deploy path, DB/admin credentials).
+3. Put that server's SSL cert in `host_files/<hostname>/ssl/` - see [`host_files/README.md`](host_files/README.md).
+4. Run the playbook normally; it deploys to every host in the group (in parallel, by default 5 forks). Use `--limit <hostname>` to target just one server.
 
-### 3. Vault Secrets
+### 3. Variables Configuration
 
-Create and encrypt sensitive data using Ansible Vault:
+- **`group_vars/cloud_1_server/vars.yml`**: settings shared by every server (deploy SSH user, Python interpreter, MariaDB container hostname/port, pinned phpMyAdmin/Adminer image tags).
+- **`host_vars/<hostname>/vars.yml`**: settings specific to one server (domain, deploy path, DB name/user, WordPress admin username/email, UFW custom ports).
+- **`host_vars/<hostname>/vault.yml`**: secrets specific to one server (sudo password, DB password, WordPress admin/user passwords).
+
+### 4. Vault Secrets
+
+`host_vars/<hostname>/vault.yml` currently holds **plaintext** secrets and is excluded from git via `.gitignore`. Encrypt it with Ansible Vault before this goes anywhere near production:
 
 ```bash
-ansible-vault create group_vars/cloud_1_server/cloud_1_server_vault.yml
+ansible-vault encrypt host_vars/server1/vault.yml
 ```
 
-Required vault variables:
-- `vault_server_ip`: Server IP address
-- `vault_ssh_private_key_file`: Path to SSH private key
-- `vault_become_pass`: Sudo password
-- `vault_app_deploy_path`: Application deployment directory
-- `vault_domain_name`: Your domain name
-- `vault_db_name`, `vault_db_user`, `vault_db_pass`: Database credentials
-- `vault_site_title`: WordPress site title
-- `vault_admin_user`, `vault_admin_pass`, `vault_admin_mail`: WordPress admin credentials
-- `vault_user_user`, `vault_user_mail`, `vault_user_pass`: WordPress user credentials
+Then remove the corresponding line from `.gitignore` (an encrypted vault file is safe, and meant, to be committed), and pass `--ask-vault-pass` (or `--vault-password-file`) to every `ansible-playbook` run.
 
 ## 🚀 Usage
 
-### Full Deployment
-
-Deploy the complete infrastructure and application:
+### Full Deployment (all servers)
 
 ```bash
 ansible-playbook playbook.yml --ask-vault-pass
+```
+
+### Single Server
+
+```bash
+ansible-playbook playbook.yml --ask-vault-pass --limit server1
 ```
 
 ### Tagged Deployments
@@ -140,7 +149,10 @@ ansible-playbook playbook.yml --ask-vault-pass --tags docker
 # Configure firewall only
 ansible-playbook playbook.yml --ask-vault-pass --tags ufw
 
-# Deploy application only
+# Deploy a single service (e.g. just refresh WordPress' files/.env)
+ansible-playbook playbook.yml --ask-vault-pass --tags wordpress
+
+# Deploy application only (all services + the compose orchestrator)
 ansible-playbook playbook.yml --ask-vault-pass --tags deploy
 ```
 
@@ -158,9 +170,14 @@ ansible-playbook playbook.yml --ask-vault-pass --tags cleanup
 | `docker` | Install Docker CE |
 | `docker_compose` | Install Docker Compose plugin |
 | `ufw` | Configure UFW firewall |
-| `deploy` | Deploy application containers |
+| `mariadb` | Stage MariaDB Dockerfile/.env |
+| `wordpress` | Stage WordPress Dockerfile/.env |
+| `nginx` | Stage Nginx Dockerfile/config/SSL |
+| `phpmyadmin` | phpMyAdmin config (image tag) |
+| `adminer` | Adminer config (image tag) |
+| `deploy` | Render docker-compose.yml, build/start the stack, wait for readiness |
 | `infra` | Run all infrastructure roles (python, docker, docker_compose, ufw) |
-| `app` | Run all application-related roles (infra + deploy) |
+| `app` | Run all application-related roles (infra + every service + deploy) |
 | `cleanup` | Remove all Docker resources and packages |
 
 ## 🔒 Security Features
@@ -171,9 +188,8 @@ ansible-playbook playbook.yml --ask-vault-pass --tags cleanup
   - 22 (SSH)
   - 80 (HTTP - redirects to HTTPS)
   - 443 (HTTPS)
-  - 8080 (Adminer)
-  - 8081 (phpMyAdmin)
-- **Ansible Vault**: Sensitive data encrypted
+  - Anything added per-host via `ufw_custom_ports` (empty by default - phpMyAdmin/Adminer are only reachable through the Nginx reverse proxy on 443, their container ports are never published to the host)
+- **Ansible Vault**: secrets isolated in `host_vars/<hostname>/vault.yml`, ready to be encrypted (see Vault Secrets above)
 - **Docker**: Containers isolated on a bridge network
 
 ## 📦 Roles Description
@@ -190,12 +206,17 @@ Installs Docker Compose plugin (V2).
 ### ufw
 Configures UFW firewall with default deny incoming policy and allows specified ports.
 
+### mariadb / wordpress / nginx
+Each stages its own Docker build context (Dockerfile, setup script) and its own `.env`/config under `{{ app_deploy_path }}/<service>/`. The `nginx` role additionally renders `nginx.conf` from `domain_name` and copies that host's SSL cert/key from `host_files/<hostname>/ssl/`.
+
+### phpmyadmin / adminer
+Run from official images (no custom build context) - these roles just own that service's pinned image tag (`defaults/main.yml`), consumed by `deploy_app`'s compose template.
+
 ### deploy_app
-- Creates application directory structure
-- Deploys Docker Compose configuration
-- Copies Dockerfiles and scripts for MariaDB, WordPress, and Nginx
-- Builds and starts containers
-- Waits for services to be ready
+- Creates the application directory
+- Renders `docker-compose.yml` referencing every service above
+- Builds and starts the stack (`docker compose up -d --build`)
+- Waits for MariaDB, WordPress, and Nginx to be ready
 - Displays container status
 
 ### cleanup
@@ -207,7 +228,7 @@ Complete cleanup role that:
 
 ## 🌐 Access Points
 
-After deployment, the following services are available:
+After deployment, the following services are available (per server, using that server's `domain_name`):
 
 - **WordPress**: `https://your-domain.com`
 - **phpMyAdmin**: `https://phpmyadmin.your-domain.com`
@@ -245,8 +266,8 @@ docker exec wordpress ls -la /var/www/wordpress/
 ## 📝 Notes
 
 - The playbook uses `become: true` for privilege escalation
-- All sensitive data should be stored in the vault file
-- SSL certificates must be provided in the nginx/ssl directory
+- All sensitive data should be stored in `host_vars/<hostname>/vault.yml`, encrypted with Ansible Vault
+- SSL certificates must be provided per-host in `host_files/<hostname>/ssl/`
 - The deployment waits for services to be ready with configurable retries
 - Containers are automatically restarted on failure
 
@@ -258,4 +279,4 @@ When modifying this playbook:
 3. Follow Ansible best practices for role structure
 4. Document any new variables or configuration options
 
-**Last Updated**: January 8, 2026
+**Last Updated**: June 30, 2026

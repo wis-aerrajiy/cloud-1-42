@@ -1,0 +1,25 @@
+# Template for a second server. To activate:
+#   1. Uncomment/add `server2` (or rename this dir to match) in hosts.yml
+#   2. Fill in real values below and in vault.yml
+#   3. Put its SSL cert/key in host_files/server2/ssl/ (see that dir's README)
+
+ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+ansible_become_pass: "{{ vault_become_pass }}"
+
+app_deploy_path: "/home/cloud-1/app"
+app_url: "https://{{ domain_name }}"
+
+db_name: "wordpress"
+db_user: "wpuser"
+db_pass: "{{ vault_db_pass }}"
+
+domain_name: "example2.com"
+site_title: "My Second WordPress Site"
+admin_user: "admin"
+admin_pass: "{{ vault_admin_pass }}"
+admin_mail: "admin@example2.com"
+user_user: "author"
+user_mail: "author@example2.com"
+user_pass: "{{ vault_user_pass }}"
+
+ufw_custom_ports: []

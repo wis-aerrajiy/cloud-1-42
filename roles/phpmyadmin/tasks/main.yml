@@ -1,0 +1,6 @@
+# phpMyAdmin runs from the official image (no custom build context), so
+# this role's job is just owning its config (defaults/main.yml) - the
+# deploy_app role renders the actual compose service from those vars.
+- name: phpMyAdmin role has no files to stage
+  debug:
+      msg: "Using phpmyadmin image: {{ phpmyadmin_image }}"

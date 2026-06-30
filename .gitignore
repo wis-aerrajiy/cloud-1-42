@@ -1,0 +1,6 @@
+# Remove this line once vault.yml is actually `ansible-vault encrypt`ed -
+# encrypted vault files are meant to be committed.
+host_vars/*/vault.yml
+*.pem
+*.key
+*.crt

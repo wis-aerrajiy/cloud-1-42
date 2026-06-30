@@ -1,30 +1,12 @@
+# Vars shared by every host in cloud_1_server.
+# Anything that differs per server (domain, deploy path, credentials, SSL
+# certs) lives in host_vars/<hostname>/ instead - see host_vars/server1/
+# and host_vars/server2/ (template) for the per-host pattern.
+
 ansible_user: cloud-1
-ansible_ssh_private_key_file: "{{ vault_ssh_private_key_file }}"
 ansible_python_interpreter: /usr/bin/python3
-ansible_become_pass: "{{ vault_become_pass }}"
 
-# App deployment settings
-app_deploy_path: "{{ vault_app_deploy_path }}"
-app_url: "https://{{ vault_domain_name }}"
-
-# MariaDB configuration
-db_name: "{{ vault_db_name }}"
-db_user: "{{ vault_db_user }}"
-db_pass: "{{ vault_db_pass }}"
+# MariaDB connection settings shared by every stack (container name/port
+# inside the docker compose network is the same on every host)
 db_host: "mariadb"
 db_port: "3306"
-
-# WordPress configuration
-domain_name:  "{{ vault_domain_name }}"
-site_title:   "{{ vault_site_title }}"
-admin_user:   "{{ vault_admin_user }}"
-admin_pass:   "{{ vault_admin_pass }}"
-admin_mail:   "{{ vault_admin_mail }}"
-user_user:    "{{ vault_user_user }}"
-user_mail:    "{{ vault_user_mail }}"
-user_pass:    "{{ vault_user_pass }}"
-
-# UFW Firewall - Custom ports to allow
-ufw_custom_ports:
-  - { port: '8080', proto: 'tcp', comment: 'Adminer' }
-  - { port: '8081', proto: 'tcp', comment: 'phpMyAdmin' }

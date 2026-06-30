@@ -7,7 +7,7 @@ services:
         context: ./mariadb
         dockerfile: Dockerfile
     env_file:
-        - .env
+        - ./mariadb/.env
     restart: always
     networks:
         - inception
@@ -20,7 +20,7 @@ services:
         context: ./wordpress
         dockerfile: Dockerfile
     env_file:
-        - .env
+        - ./wordpress/.env
     restart: always
     networks:
         - inception
@@ -47,7 +47,7 @@ services:
         - phpmyadmin
 
   adminer:
-    image: adminer:latest
+    image: "{{ adminer_image }}"
     container_name: adminer
     environment:
         ADMINER_DEFAULT_SERVER: mariadb
@@ -59,7 +59,7 @@ services:
         - mariadb
 
   phpmyadmin:
-    image: phpmyadmin:latest
+    image: "{{ phpmyadmin_image }}"
     container_name: phpmyadmin
     environment:
         PMA_ARBITRARY: 1

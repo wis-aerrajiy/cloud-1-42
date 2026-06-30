@@ -25,7 +25,7 @@ http {
     ssl_session_timeout 10m;
 
     ssl_certificate     /etc/nginx/ssl/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/is-wis.com.key;
+    ssl_certificate_key /etc/nginx/ssl/{{ domain_name }}.key;
 
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 

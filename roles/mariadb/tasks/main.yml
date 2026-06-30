@@ -1,0 +1,32 @@
+- name: Create mariadb build context directory
+  file:
+      path: "{{ app_deploy_path }}/mariadb/tools"
+      state: directory
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+  become: yes
+
+- name: Copy MariaDB Dockerfile
+  copy:
+      src: Dockerfile
+      dest: "{{ app_deploy_path }}/mariadb/Dockerfile"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0644'
+
+- name: Copy MariaDB setup.sh
+  copy:
+      src: tools/setup.sh
+      dest: "{{ app_deploy_path }}/mariadb/tools/setup.sh"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0755'
+
+- name: Deploy MariaDB .env file from template
+  template:
+      src: mariadb.env.j2
+      dest: "{{ app_deploy_path }}/mariadb/.env"
+      owner: "{{ ansible_user }}"
+      group: "{{ ansible_user }}"
+      mode: '0600'
